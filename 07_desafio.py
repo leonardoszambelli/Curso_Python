@@ -1,0 +1,11 @@
+executar=True
+while executar:
+    nome = input ("Digite seu nome: ")
+    anoAtual = int(input("Digite o ano atual: "))
+    anoNasc = int(input("Digite o ano de nascimento: "))
+    idade = anoAtual - anoNasc
+    print ("Olá "+ nome + " você tem" + str(idade) + " anos.")
+    opcao = input ("Você deseja testar novamente? \n [1] Sim ou \n [2] Não?")
+    if opcao == 2 or "Não" or "não" or "nao" or "não":
+        executar=False
+        
