@@ -4,570 +4,357 @@
 #  / ___ \ | | ___) |  ___) | \__ \ ||  __/ | | | | | (_| \__ \
 # /_/   \_\___|____/  |____/|_|___/\__\___|_| |_| |_|\__,_|___/
 
-# Autor: Leonardo S Zambelli
-# Versâo: 0.1.0
+# Autor: Leonardo 
+# Versão: 0.1.0
 
 from flask import Flask, request, jsonify, render_template_string
 import pandas as pd
 import sqlite3
 import os
-import config 
+import config
 import numpy as np
+import dash
+from dash import Dash, html, dcc
+import plotly.graph_objs as go
 
-app=Flask(__name__)
-db_path=config.DB_PATH
+app = Flask(__name__)
+db_path = config.DB_PATH
 
-# Funcao para inicializar o banco de dados
+# Função para inicializar o banco de dados
 def init_db():
     with sqlite3.connect(db_path) as conn:
-        cursor=conn.cursor()
+        cursor = conn.cursor()
         cursor.execute('''
-                       CREATE TABLE IF NOT EXISTS inadimplencia (
-                           mes TEXT PRIMARY KEY,
-                           inadimplencia REAL
-                       )
-                       ''')
+            CREATE TABLE IF NOT EXISTS inadimplencia (
+                mes TEXT PRIMARY KEY,
+                inadimplencia REAL        
+            )               
+        ''')
         cursor.execute('''
-                        CREATE TABLE IF NOT EXISTS selic (
-                           mes TEXT PRIMARY KEY,
-                           selic_diaria REAL
-                           )
-                       ''')
+            CREATE TABLE IF NOT EXISTS selic (
+                mes TEXT PRIMARY KEY,
+                selic_diaria REAL        
+            )                      
+        ''')
         conn.commit()
-        
-
+    
 @app.route('/')
 def index():
     return render_template_string('''
-    <!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Dashboard Econômico</title>
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Inter', sans-serif;
-        }
-
-        body {
-            min-height: 100vh;
-            background:
-                radial-gradient(circle at top left, #17345c, transparent 40%),
-                linear-gradient(135deg, #08111f, #101e32 60%, #0b1728);
-            color: #fff;
-            padding: 45px 20px;
-        }
-
-        .container {
-            max-width: 1050px;
-            margin: auto;
-        }
-
-        /* CABEÇALHO */
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 45px;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-
-        .logo {
-            width: 52px;
-            height: 52px;
-            border-radius: 15px;
-            background: linear-gradient(135deg, #00d4a0, #008cff);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 25px;
-            box-shadow: 0 5px 25px #00d4a044;
-        }
-
-        .brand h2 {
-            font-size: 19px;
-            font-weight: 800;
-        }
-
-        .brand p {
-            color: #8295ad;
-            font-size: 12px;
-            margin-top: 5px;
-        }
-
-        .status {
-            background: #102c2b;
-            color: #36e6b0;
-            border: 1px solid #1d6654;
-            border-radius: 30px;
-            padding: 9px 16px;
-            font-size: 12px;
-        }
-
-        /* TÍTULO */
-
-        .hero {
-            margin-bottom: 35px;
-        }
-
-        .hero span {
-            color: #00d4a0;
-            font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-        }
-
-        .hero h1 {
-            font-size: clamp(30px, 5vw, 43px);
-            margin: 13px 0;
-            font-weight: 800;
-            letter-spacing: -1.5px;
-        }
-
-        .hero p {
-            color: #91a3ba;
-            font-size: 14px;
-            line-height: 1.7;
-        }
-
-        /* ÁREA DE UPLOAD */
-
-        .upload-card {
-            background: rgba(20, 37, 59, 0.85);
-            border: 1px solid #263d59;
-            border-radius: 22px;
-            padding: 32px;
-            backdrop-filter: blur(15px);
-            box-shadow: 0 20px 60px #00000030;
-            margin-bottom: 35px;
-        }
-
-        .section-title {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 25px;
-        }
-
-        .section-icon {
-            background: #153c43;
-            color: #00d4a0;
-            width: 42px;
-            height: 42px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
-
-        .section-title h3 {
-            font-size: 17px;
-        }
-
-        .section-title p {
-            font-size: 12px;
-            color: #8295ad;
-            margin-top: 5px;
-        }
-
-        .upload-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-
-        .upload-box {
-            background: #0e1d30;
-            border: 1px dashed #38516d;
-            border-radius: 16px;
-            padding: 25px 20px;
-            transition: .3s;
-        }
-
-        .upload-box:hover {
-            border-color: #00d4a0;
-            background: #12283a;
-            transform: translateY(-3px);
-        }
-
-        .upload-box .file-icon {
-            font-size: 27px;
-            margin-bottom: 15px;
-        }
-
-        .upload-box h4 {
-            font-size: 14px;
-            margin-bottom: 8px;
-        }
-
-        .upload-box p {
-            font-size: 11px;
-            color: #8295ad;
-            margin-bottom: 18px;
-        }
-
-        input[type="file"] {
-            width: 100%;
-            color: #a9bbd0;
-            font-size: 11px;
-        }
-
-        input[type="file"]::file-selector-button {
-            background: #1b3852;
-            border: none;
-            padding: 9px 12px;
-            border-radius: 8px;
-            color: #fff;
-            cursor: pointer;
-            margin-right: 8px;
-        }
-
-        input[type="file"]::file-selector-button:hover {
-            background: #00a982;
-        }
-
-        .submit-btn {
-            width: 100%;
-            margin-top: 25px;
-            padding: 16px;
-            border: none;
-            border-radius: 12px;
-            background: linear-gradient(90deg, #00c896, #008cff);
-            color: white;
-            font-size: 14px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: .3s;
-        }
-
-        .submit-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 25px #00c89640;
-            filter: brightness(1.1);
-        }
-
-        /* MENU */
-
-        .menu-title {
-            font-size: 17px;
-            margin-bottom: 18px;
-        }
-
-        .menu-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-        }
-
-        .menu-item {
-            text-decoration: none;
-            color: white;
-            background: #14253b;
-            border: 1px solid #263d59;
-            padding: 22px;
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            transition: .3s;
-        }
-
-        .menu-item:hover {
-            border-color: #00d4a0;
-            background: #192f47;
-            transform: translateY(-4px);
-        }
-
-        .menu-icon {
-            width: 46px;
-            height: 46px;
-            border-radius: 13px;
-            background: #1d3850;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 21px;
-        }
-
-        .menu-item h4 {
-            font-size: 13px;
-            margin-bottom: 6px;
-        }
-
-        .menu-item p {
-            font-size: 11px;
-            color: #8295ad;
-        }
-
-        .arrow {
-            margin-left: auto;
-            color: #00d4a0;
-            font-size: 20px;
-        }
-
-        footer {
-            text-align: center;
-            color: #536982;
-            font-size: 11px;
-            margin-top: 45px;
-        }
-
-        /* RESPONSIVIDADE */
-
-        @media (max-width: 650px) {
-            body {
-                padding: 25px 15px;
-            }
-
-            .upload-grid,
-            .menu-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .upload-card {
-                padding: 22px 17px;
-            }
-
-            .hero h1 {
-                font-size: 30px;
-            }
-        }
-    </style>
-</head>
-
-<body>
-
-<div class="container">
-
-    <header class="header">
-        <div class="brand">
-            <div class="logo">📊</div>
-
-            <div>
-                <h2>ECON DATA</h2>
-                <p>Economic Intelligence Platform</p>
-            </div>
-        </div>
-
-        <div class="status">● Sistema de análise</div>
-    </header>
-
-
-    <section class="hero">
-        <span>PAINEL DE CONTROLE</span>
-
-        <h1>Dados Econômicos</h1>
-
-        <p>
-            Gerencie, consulte e analise indicadores econômicos
-            em um único ambiente.
-        </p>
-    </section>
-
-
-    <section class="upload-card">
-
-        <div class="section-title">
-            <div class="section-icon">⇧</div>
-
-            <div>
-                <h3>Importação de dados</h3>
-                <p>Faça upload dos arquivos CSV para atualizar sua base de dados.</p>
-            </div>
-        </div>
-
-        <form action="/upload" method="POST" enctype="multipart/form-data">
-
-            <div class="upload-grid">
-
-                <div class="upload-box">
-                    <div class="file-icon">📉</div>
-
-                    <h4>Dados de Inadimplência</h4>
-
-                    <p>Selecione o arquivo CSV de inadimplência.</p>
-
-                    <input
-                        type="file"
-                        name="campo_inadimplencia"
-                        accept=".csv"
-                        required
-                    >
-                </div>
-
-
-                <div class="upload-box">
-                    <div class="file-icon">📈</div>
-
-                    <h4>Taxa SELIC</h4>
-
-                    <p>Selecione o arquivo CSV da taxa SELIC.</p>
-
-                    <input
-                        type="file"
-                        name="campo_selic"
-                        accept=".csv"
-                        required
-                    >
-                </div>
-
-            </div>
-
-            <button type="submit" class="submit-btn">
-                ↑ &nbsp; Fazer upload dos arquivos
-            </button>
-
+    <h1> Upload de dados Econômicos </h1>
+        <form action='/upload' method='POST' enctype='multipart/form-data'>
+            <label for='campo_inadimplencia'> Aquivo de Inadimplência (CSV): </label>    
+            <input name='campo_inadimplencia' type='file' required><br><br>
+                                  
+            <label for='campo_selic'> Arquivo da Taxa Selic (CSV) </label>
+            <input name="campo_selic" type='file' required> <br/> <br/>
+            <input type='submit' value='Fazer Upload'>
         </form>
-
-    </section>
-
-
-    <section>
-
-        <h3 class="menu-title">Ferramentas de análise</h3>
-
-        <div class="menu-grid">
-
-            <a href="/consultar" class="menu-item">
-                <div class="menu-icon">🗄️</div>
-
-                <div>
-                    <h4>Consultar dados</h4>
-                    <p>Visualize os dados armazenados.</p>
-                </div>
-
-                <span class="arrow">›</span>
-            </a>
-
-
-            <a href="/graficos" class="menu-item">
-                <div class="menu-icon">📊</div>
-
-                <div>
-                    <h4>Visualizar gráficos</h4>
-                    <p>Explore indicadores econômicos.</p>
-                </div>
-
-                <span class="arrow">›</span>
-            </a>
-
-
-            <a href="/editar_inadimplencia" class="menu-item">
-                <div class="menu-icon">✏️</div>
-
-                <div>
-                    <h4>Editar inadimplência</h4>
-                    <p>Gerencie os registros da base.</p>
-                </div>
-
-                <span class="arrow">›</span>
-            </a>
-
-
-            <a href="/correlacao" class="menu-item">
-                <div class="menu-icon">🔗</div>
-
-                <div>
-                    <h4>Analisar correlação</h4>
-                    <p>Compare SELIC e inadimplência.</p>
-                </div>
-
-                <span class="arrow">›</span>
-            </a>
-
-        </div>
-
-    </section>
-
-
-    <footer>
-        ECON DATA © 2026 — Plataforma de Inteligência Econômica
-    </footer>
-
-</div>
-
-</body>
-</html>                            
+        <br><br>
+        <hr>
+        <a href='/consultar'> Consultar dados Armazenados </a><br>
+        <a href='/graficos'> Visualizar Graficos </a><br>
+        <a href='/editar_inadimplencia'> Editar dados de Inadimplencia </a><br>
+        <a href='/editar_selic'> Editar taxa Selic </a><br>
+        <a href='/correlacao'> Analisar Correlação </a><br>                                                      
     ''')
 
-@app.route('/upload', methods=['POST','GET]'])    
-def upload(): 
-    inad_file=request.files.get('campo_inadimplencia')
-    selic_file=request.files.get('campo_selic')
+@app.route('/upload', methods=['POST','GET'])
+def upload():
+    inad_file = request.files.get('campo_inadimplencia')
+    selic_file = request.files.get('campo_selic')
     
-    #vamos verificar se os arquivos foram devidamente enviados
+    # Vamos verificar se os arquivos foram devidamentte enviados
     if not inad_file or not selic_file:
-        return jsonify({"Erro" : "Ambos os arquivos precisam ser enviados!"})
+        return jsonify({"Erro":"Ambos os arquivos precisam ser enviados!"})
     inad_df = pd.read_csv(
         inad_file,
-        sep=';',
+        sep = ';',
         names = ['data', 'inadimplencia'],
-        header=0
+        header = 0
     )
     selic_df = pd.read_csv(
         selic_file,
-        sep=';',
+        sep = ';',
         names = ['data', 'selic_diaria'],
-        header=0
+        header = 0
     )
-    inad_df['data']=pd.to_datetime(inad_df['data'],format="%d/%m/%Y")
-    selic_df['data']=pd.to_datetime(selic_df['data'],format="%d/%m/%Y")
-    inad_df['mes']=inad_df['data'].dt.to_period('M').astype(str)
-    selic_df['mes']=selic_df['data'].dt.to_period('M').astype(str)
+    
+    inad_df['data'] = pd.to_datetime(inad_df['data'], format="%d/%m/%Y")
+    selic_df['data'] = pd.to_datetime(selic_df['data'], format="%d/%m/%Y")
+    
+    inad_df['mes'] = inad_df['data'].dt.to_period('M').astype(str)
+    selic_df['mes'] = selic_df['data'].dt.to_period('M').astype(str)
     
     inad_mensal = inad_df[['mes','inadimplencia']].drop_duplicates()
     selic_mensal = selic_df.groupby('mes')['selic_diaria'].mean().reset_index()
     
-    with sqlite3.connect(db_path) as conn:
-        inad_mensal.to_sql('inadimplencia', conn, if_exists='replace',index=False)
-        selic_mensal.to_sql('selic', conn, if_exists='replace',index=False)
-    return jsonify({'Mensagem':'dados armazenados com sucesso!'})    
-    
+    with sqlite3.connect(db_path) as conn :
+        inad_mensal.to_sql('inadimplencia', conn, if_exists='replace', index = False)
+        selic_mensal.to_sql('selic', conn, if_exists='replace', index = False)
+    return jsonify({'Mensagem':'dados armazenados com sucesso!'})
+
 @app.route('/consultar', methods=['POST','GET'])
-def consultar ():
-    #resultado se a pagina for carregada recebendo um POST
-    if request.method == 'POST': 
-        tabela=request.form.get('campo_tabela')
-        if tabela not in ['inadimplencia', 'selic']:
-            return jsonify ({'Erro': 'Tabela Invalida'}),400
-        with sqlite3.connect(db_path) as conn:
-            df = pd.read_sql_query(f'SELECT * FROM {tabela}', conn) 
-            return df.to_html(index=False)
-    #resultado sem receber um POST, ou seja, primeiro carregamento da pagina
-    return render_template_string ('''
-        <h1> Consulta de Tabela </h1>
+def consultar() :
+    # Resultado se a pagina for carregada recebendo um POST
+    if request.method == 'POST' :
+        tabela = request.form.get('campo_tabela')
+        if tabela not in ['inadimplencia','selic'] :
+            return jsonify({'Erro':'Tabela inválida'}),400
+        with sqlite3.connect(db_path) as conn :
+            df = pd.read_sql_query(f'SELECT * FROM {tabela}', conn)
+        return df.to_html(index=False)
+        
+    
+    # Resultado sem receber um POST, ou seja, primeiro carregamento da pagina
+    return render_template_string('''
+        <h1> Consulta de Tabelas </h1>
         <form method='POST'>
             <label for='campo_tabela'> Escolha uma Tabela: </label>
             <select name='campo_tabela'>
                 <option value='inadimplencia'> Inadimplencia </option>
-                <option value='selic' > Taxa Selic </option>
+                <option value='selic'> Taxa Selic </option>
             </select>
             <input type="submit" value="consultar">
-            </form>
-            <br><a href="/">Voltar</a>
-                                   
+        </form>       
+        <br><a  href="/"> Voltar </a>             
     ''')
     
-if __name__== '__main__':
+@app.route('/graficos')
+def graficos():
+    with sqlite3.connect(db_path) as conn :
+        inad_df = pd.read_sql_query('SELECT * FROM inadimplencia', conn)
+        selic_df = pd.read_sql_query('SELECT * FROM selic', conn)
+        
+    fig1 = go.Figure()
+    fig1.add_trace(go.Scatter(
+        x = inad_df['mes'], 
+        y = inad_df['inadimplencia'],
+        mode = 'lines+markers',
+        name = 'Inadimplência'       
+        )
+    )
+    # 'ggplot2', 'seaborn', 'simple_white', 'plotly','plotly_white', 'plotly_dark', 'presentation', 'xgridoff','ygridoff', 'gridon', 'none'
+    fig1.update_layout(
+        title = "Evolução da Inadimplencia",
+        xaxis_title = "Mês",
+        yaxis_title = '%',
+        template = 'plotly_dark'
+    )
+    fig2 = go.Figure()
+    fig2.add_trace(go.Scatter(
+        x = selic_df['mes'], 
+        y = selic_df['selic_diaria'],
+        mode = 'lines+markers',
+        name = 'Selic'
+        )
+    )
+    fig2.update_layout(
+        title       = 'Média Mensal da Selic',
+        xaxis_title = "Mês",
+        yaxis_title = "Taxa",
+        template    = "plotly_dark"
+    )
+    
+    graph_html_1 = fig1.to_html(full_html=False, include_plotlyjs='cdn')
+    graph_html_2 = fig2.to_html(full_html=False, include_plotlyjs=False)
+    
+    return render_template_string('''
+        <html>
+            <head>
+                <title> Graficos Esconomicos </title>
+                <style>
+                        .container{
+                            display:flex;
+                            justify-content:space-around;
+                            width: 100%;
+                        }
+                        .graph{ 
+                            width: 48%;
+                        }         
+                </style>
+            </head>
+            <body>
+                   <h1><marquee> Graficos Economicos </marquee></h1>   
+                    <div class="container">                     
+                        <div class="graph">{{ grafico1|safe }}</div>
+                        <div class="graph">{{ grafico2|safe}}</div>
+                    </div>            
+            </body>
+        </html>                              
+    ''', grafico1 = graph_html_1, grafico2 = graph_html_2)
+
+@app.route('/editar_inadimplencia', methods=['POST','GET'])
+def editar_inadimplencia():
+    # Recebe os dados e realiza a edição
+    if request.method == 'POST':
+        mes = request.form.get('campo_mes')
+        novo_valor = request.form.get('campo_valor')
+        try:
+            novo_valor = float(novo_valor)
+        except:
+            return jsonify({"Erro":"Valor invalido"})
+        
+        with sqlite3.connect(db_path) as conn :
+            cursor = conn.cursor()
+            cursor.execute("UPDATE inadimplencia SET inadimplencia = ? WHERE mes = ?", (novo_valor, mes))
+        return jsonify({"Mensagem": f" Valor atualizado para o mes {mes} com sucesso"})
+                    # 2011-04
+    #exibe o painel de edição (primeira carga sem dados editados)
+    return render_template_string('''
+        <h1> Editar Inadimplencia </h1>
+        <form method="POST" action="/editar_inadimplencia">
+            <label for="campo_mes">Mês (AAAA-MM):</label>
+            <input type="text" name="campo_mes"><br>
+                                  
+            <label for="campo_valor">Novo valor de Inadimplência:</label>
+            <input type="text" name="campo_valor"><br>
+                                  
+            <input type="submit" value="Atualizar Dados">
+        </form>
+        <br>
+        <a href="/"> Voltar </a>
+    ''')
+    
+@app.route('/editar_selic', methods=["POST","GET"])
+def editar_selic():
+    if request.method == 'POST':
+        mes = request.form.get('campo_mes')
+        novo_valor = request.form.get('campo_valor')
+        try:
+            novo_valor = float(novo_valor)
+        except:
+            return jsonify({'Erro':'Valor de Taxa invalido'}),400
+        
+        with sqlite3.connect(db_path) as conn :
+            cursor = conn.cursor()
+            cursor.execute("UPDATE selic SET selic_diaria = ? WHERE mes = ?", (novo_valor, mes))
+            conn.commit()
+        
+            if cursor.rowcount == 0 :
+                return jsonify({'Erro':f'Não foi possivel encontrar o registro para o mês {mes}'}), 404
+
+        return jsonify({'Mensagem':f'Taxa selic atualizada para o mes {mes} com sucesso'})
+    return render_template_string('''
+        <h1>Editar Taxa SELIC</h1>
+        <form method="POST" action="/editar_selic">
+            <label for="campo_mes">Mês (AAAA-MM):</label>
+            <input name="campo_mes" required>
+            <br><br>
+            <label for="campo_valor">Nova Taxa SELIC:</label>
+            <input name="campo_valor">
+            <br><br>
+            <input type="submit" value="Atualizar Dados">
+        </form>
+        <br>
+        <a href="/">Voltar</a>                              
+    ''')
+
+@app.route('/correlacao')
+def correlacao():
+    with sqlite3.connect(db_path) as conn:
+        inad_df = pd.read_sql_query ("SELECT * FROM inadimplencia",conn)
+        selic_df = pd.read_sql_query ("SELECT * FROM selic",conn)
+        
+    merged=pd.merge(inad_df, selic_df, on = 'mes')
+    
+    #correlacao de person
+    correl = merged ['inadimplencia'].corr(merged['selic_diaria'])
+    
+    #regressao linear para visualizacao 
+    x=merged['selic_diaria']
+    y=merged['inadimplencia']
+    m,b = np.polyfit (x,y,1)
+    #o terceiro argumento indica que queremos ajudar uma reta, ou seja, um polinomio de primeiro grau
+    
+    #M - Coeficiente Angular (inclinacao da reta)
+    #B - Coeficiente linear (ponto onde a reta cruza o eixo y)
+
+    fig=go.Figure()
+    fig.add_trace(go.Scatter(
+        x=x,
+        y=y,
+        mode="markers",
+        name="Inadimplencia x Selic",
+        hovertemplate = "SELIC: %{x:.2f} <br>Inadimplencia: %{y:.2f}<extra></extra>",
+        marker = dict(
+            color = 'rgba(0,123,255,0.8)',
+            size = 12,
+            line = dict(width=2, color='white'),
+            symbol='circle' 
+            )
+         )),
+    fig.add_trace(go.Scatter(
+        x=x,
+        y=m*x+b,
+        mode= 'lines',
+        name='Linha de Tendencia',
+        line=dict(color='rgba(220,53,69,1)',width=4, dash='dot')
+    ))  
+    
+    fig.update_layout(
+        title = {
+            'text':f'<b>Correlação entre Selic e Inadimplencia</b><br><span style="font-size:16px">Coeficiente de Correlação: {correl}</span>',
+            'y':0.95,
+            'x':0.5,
+            'xanchor':'center',
+            'yanchor':'top'
+        },
+        xaxis_title=dict(
+            text='Selic Media Mensal (%)',
+            font=dict(size=18, family='Arial', color= 'gray')
+            ),
+        yaxis_title=dict(
+            text='Inadimplencia (%)',
+            font=dict(size=18, family='Arial', color= 'gray')
+            ),
+        xaxis=dict(
+            gridcolor='lightgray',
+            tickfont=dict(size=14, family='Arial', color= 'black')
+            ),
+        yaxis=dict(
+            gridcolor='lightgray',
+            tickfont=dict(size=14, family='Arial', color= 'black')
+            ),
+        plot_bgcolor="#f8f9fa",
+        paper_bgcolor="white",
+        font= dict(size=14, family='Arial', color= 'black'),
+        margin= dict(l=60, r=60, t=120, b=60),
+        legend=dict(
+            orientation='h',
+            yanchor='bottom',
+            y=1.05,
+            xanchor='center',
+            x=0.5,
+            bgcolor='rgba(0,0,0,0)',
+            borderwidth=0
+        )
+        )
+    graph_html=fig.to_html(full_html=False, include_plotlyjs='cdn')
+    return render_template_string ('''
+                                   <html>
+        <head>
+            <title>Correlação SELIC vs Inadimplência</title>
+            <style>
+                body { font-family: Arial, sans-serif; background-color: #ffffff; color: #333; }
+                .container { width: 90%; margin: auto; text-align: center; }
+                h1 { margin-top: 40px; }
+                a { text-decoration: none; color: #007bff; }
+                a:hover { text-decoration: underline; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Correlação entre SELIC e Inadimplência</h1>
+                <div>{{graph|safe}}</div>
+                <br><div><a href="/">Voltar</a></div>
+            </div>
+        </body>
+        </html>           
+    ''',graph = graph_html)
+    
+    
+    
+if __name__ == '__main__':
     init_db()
     app.run(debug=True)

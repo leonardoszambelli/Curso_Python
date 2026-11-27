@@ -4,8 +4,7 @@
 #  / ___ \ | | ___) |  ___) | \__ \ ||  __/ | | | | | (_| \__ \
 # /_/   \_\___|____/  |____/|_|___/\__\___|_| |_| |_|\__,_|___/
 
-# Autor: Leonardo S Zambelli
-# Versâo: 0.1.0
+# Autor: Caio C Rossi
+# Versão: 0.1.0
 
 DB_PATH = 'dados.db'
-
